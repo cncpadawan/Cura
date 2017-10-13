@@ -9,6 +9,8 @@
         "manufacturer": "Peopoly",
         "category": "Other",
         "file_formats": "text/x-gcode",
+        "platform": "moai.obj",
+        "platform_texture": "moai.jpg",
         "has_machine_quality": true,
         "has_materials": false
     },

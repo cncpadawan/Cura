@@ -137,6 +137,7 @@ class PrintInformation(QObject):
                 continue
             total_time += time
             self._print_times_per_feature[feature].setDuration(time)
+        total_time = total_time / 5 # Modification for Moai 
         self._current_print_time.setDuration(total_time)
 
         self.currentPrintTimeChanged.emit()
