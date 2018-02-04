@@ -1,5 +1,5 @@
 # Copyright (c) 2017 Ultimaker B.V.
-# Cura is released under the terms of the AGPLv3 or higher.
+# Cura is released under the terms of the LGPLv3 or higher.
 
 from UM.Signal import Signal, signalemitter
 from . import USBPrinterOutputDevice
@@ -16,12 +16,11 @@ from cura.CuraApplication import CuraApplication
 
 import threading
 import platform
-import glob
 import time
 import os.path
+import serial.tools.list_ports
 from UM.Extension import Extension
 
-from PyQt5.QtQml import QQmlComponent, QQmlContext
 from PyQt5.QtCore import QUrl, QObject, pyqtSlot, pyqtProperty, pyqtSignal, Qt
 from UM.i18n import i18nCatalog
 i18n_catalog = i18nCatalog("cura")
@@ -90,21 +89,18 @@ class USBPrinterOutputDeviceManager(QObject, OutputDevicePlugin, Extension):
     #   This will create the view if its not already created.
     def spawnFirmwareInterface(self, serial_port):
         if self._firmware_view is None:
-            path = QUrl.fromLocalFile(os.path.join(PluginRegistry.getInstance().getPluginPath("USBPrinting"), "FirmwareUpdateWindow.qml"))
-            component = QQmlComponent(Application.getInstance()._engine, path)
-
-            self._firmware_context = QQmlContext(Application.getInstance()._engine.rootContext())
-            self._firmware_context.setContextProperty("manager", self)
-            self._firmware_view = component.create(self._firmware_context)
+            path = os.path.join(PluginRegistry.getInstance().getPluginPath("USBPrinting"), "FirmwareUpdateWindow.qml")
+            self._firmware_view = Application.getInstance().createQmlComponent(path, {"manager": self})
 
         self._firmware_view.show()
 
     @pyqtSlot(str)
     def updateAllFirmware(self, file_name):
         if file_name.startswith("file://"):
-            file_name = QUrl(file_name).toLocalFile() # File dialogs prepend the path with file://, which we don't need / want
+            file_name = QUrl(file_name).toLocalFile()  # File dialogs prepend the path with file://, which we don't need / want
+
         if not self._usb_output_devices:
-            Message(i18n_catalog.i18nc("@info", "Unable to update firmware because there are no printers connected.")).show()
+            Message(i18n_catalog.i18nc("@info", "Unable to update firmware because there are no printers connected."), title = i18n_catalog.i18nc("@info:title", "Warning")).show()
             return
 
         for printer_connection in self._usb_output_devices:
@@ -118,7 +114,7 @@ class USBPrinterOutputDeviceManager(QObject, OutputDevicePlugin, Extension):
                 self._usb_output_devices[printer_connection].setProgress(100, 100)
                 Logger.log("w", "No firmware found for printer %s called '%s'", printer_connection, file_name)
                 Message(i18n_catalog.i18nc("@info",
-                    "Could not find firmware required for the printer at %s.") % printer_connection).show()
+                    "Could not find firmware required for the printer at %s.") % printer_connection, title = i18n_catalog.i18nc("@info:title", "Printer Firmware")).show()
                 self._firmware_view.close()
 
                 continue
@@ -229,12 +225,14 @@ class USBPrinterOutputDeviceManager(QObject, OutputDevicePlugin, Extension):
 
     ##  If one of the states of the connected devices change, we might need to add / remove them from the global list.
     def _onConnectionStateChanged(self, serial_port):
+        success = True
         try:
             if self._usb_output_devices[serial_port].connectionState == ConnectionState.connected:
                 self.getOutputDeviceManager().addOutputDevice(self._usb_output_devices[serial_port])
             else:
-                self.getOutputDeviceManager().removeOutputDevice(serial_port)
-            self.connectionStateChanged.emit()
+                success = success and self.getOutputDeviceManager().removeOutputDevice(serial_port)
+            if success:
+                self.connectionStateChanged.emit()
         except KeyError:
             Logger.log("w", "Connection state of %s changed, but it was not found in the list")
 
@@ -252,24 +250,13 @@ class USBPrinterOutputDeviceManager(QObject, OutputDevicePlugin, Extension):
     #   \param only_list_usb If true, only usb ports are listed
     def getSerialPortList(self, only_list_usb = False):
         base_list = []
-        if platform.system() == "Windows":
-            import winreg # type: ignore @UnresolvedImport
-            try:
-                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,"HARDWARE\\DEVICEMAP\\SERIALCOMM")
-                i = 0
-                while True:
-                    values = winreg.EnumValue(key, i)
-                    if not only_list_usb or "USBSER" or "VCP" in values[0]:
-                        base_list += [values[1]]
-                    i += 1
-            except Exception as e:
-                pass
-        else:
-            if only_list_usb:
-                base_list = base_list + glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*") + glob.glob("/dev/cu.usb*") + glob.glob("/dev/tty.wchusb*") + glob.glob("/dev/cu.wchusb*")
-                base_list = filter(lambda s: "Bluetooth" not in s, base_list) # Filter because mac sometimes puts them in the list
-            else:
-                base_list = base_list + glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*") + glob.glob("/dev/cu.*") + glob.glob("/dev/tty.usb*") + glob.glob("/dev/tty.wchusb*") + glob.glob("/dev/cu.wchusb*") + glob.glob("/dev/rfcomm*") + glob.glob("/dev/serial/by-id/*")
+        for port in serial.tools.list_ports.comports():
+            if not isinstance(port, tuple):
+                port = (port.device, port.description, port.hwid)
+            if only_list_usb and not port[2].startswith("USB"):
+                continue
+            base_list += [port[0]]
+
         return list(base_list)
 
     _instance = None    # type: "USBPrinterOutputDeviceManager"

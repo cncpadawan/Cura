@@ -1,14 +1,24 @@
-// Copyright (c) 2015 Ultimaker B.V.
-// Uranium is released under the terms of the AGPLv3 or higher.
+// Copyright (c) 2017 Ultimaker B.V.
+// Cura is released under the terms of the LGPLv3 or higher.
 
-import QtQuick 2.2
-import QtQuick.Controls 1.2
+import QtQuick 2.8
+import QtQuick.Controls 2.1
 
 import UM 1.1 as UM
 
 SettingItem
 {
     id: base
+    property var focusItem: input
+
+    property string textBeforeEdit
+    property bool textHasChanged
+    onFocusReceived:
+    {
+        textHasChanged = false;
+        textBeforeEdit = focusItem.text;
+        focusItem.selectAll();
+    }
 
     contents: Rectangle
     {
@@ -17,25 +27,44 @@ SettingItem
         anchors.fill: parent
 
         border.width: UM.Theme.getSize("default_lining").width
-        border.color: !enabled ? UM.Theme.getColor("setting_control_disabled_border") : hovered ? UM.Theme.getColor("setting_control_border_highlight") : UM.Theme.getColor("setting_control_border")
+        border.color:
+        {
+            if(!enabled)
+            {
+                return UM.Theme.getColor("setting_control_disabled_border")
+            }
+            switch(propertyProvider.properties.validationState)
+            {
+                case "ValidatorState.Exception":
+                case "ValidatorState.MinimumError":
+                case "ValidatorState.MaximumError":
+                    return UM.Theme.getColor("setting_validation_error");
+                case "ValidatorState.MinimumWarning":
+                case "ValidatorState.MaximumWarning":
+                    return UM.Theme.getColor("setting_validation_warning");
+            }
+            //Validation is OK.
+            if(hovered || input.activeFocus)
+            {
+                return UM.Theme.getColor("setting_control_border_highlight")
+            }
+            return UM.Theme.getColor("setting_control_border")
+        }
 
         color: {
-            if (!enabled)
+            if(!enabled)
             {
                 return UM.Theme.getColor("setting_control_disabled")
             }
             switch(propertyProvider.properties.validationState)
             {
                 case "ValidatorState.Exception":
-                    return UM.Theme.getColor("setting_validation_error")
                 case "ValidatorState.MinimumError":
-                    return UM.Theme.getColor("setting_validation_error")
                 case "ValidatorState.MaximumError":
-                    return UM.Theme.getColor("setting_validation_error")
+                    return UM.Theme.getColor("setting_validation_error_background")
                 case "ValidatorState.MinimumWarning":
-                    return UM.Theme.getColor("setting_validation_warning")
                 case "ValidatorState.MaximumWarning":
-                    return UM.Theme.getColor("setting_validation_warning")
+                    return UM.Theme.getColor("setting_validation_warning_background")
                 case "ValidatorState.Valid":
                     return UM.Theme.getColor("setting_validation_ok")
 
@@ -80,17 +109,38 @@ SettingItem
                 left: parent.left
                 leftMargin: UM.Theme.getSize("setting_unit_margin").width
                 right: parent.right
+                rightMargin: UM.Theme.getSize("setting_unit_margin").width
                 verticalCenter: parent.verticalCenter
+            }
+            renderType: Text.NativeRendering
+
+            Keys.onTabPressed:
+            {
+                base.setActiveFocusToNextSetting(true)
+            }
+            Keys.onBacktabPressed:
+            {
+                base.setActiveFocusToNextSetting(false)
             }
 
             Keys.onReleased:
             {
-                propertyProvider.setPropertyValue("value", text)
+                if (text != textBeforeEdit)
+                {
+                    textHasChanged = true;
+                }
+                if (textHasChanged)
+                {
+                    propertyProvider.setPropertyValue("value", text)
+                }
             }
 
-            onEditingFinished:
+            onActiveFocusChanged:
             {
-                propertyProvider.setPropertyValue("value", text)
+                if(activeFocus)
+                {
+                    base.focusReceived();
+                }
             }
 
             color: !enabled ? UM.Theme.getColor("setting_control_disabled_text") : UM.Theme.getColor("setting_control_text")
@@ -98,7 +148,8 @@ SettingItem
 
             selectByMouse: true;
 
-            maximumLength: (definition.type == "[int]") ? 20 : (definition.type == "str") ? -1 : 10;
+            maximumLength: (definition.type == "str" || definition.type == "[int]") ? -1 : 10;
+            clip: true; //Hide any text that exceeds the width of the text box.
 
             validator: RegExpValidator { regExp: (definition.type == "[int]") ? /^\[?(\s*-?[0-9]{0,9}\s*,)*(\s*-?[0-9]{0,9})\s*\]?$/ : (definition.type == "int") ? /^-?[0-9]{0,10}$/ : (definition.type == "float") ? /^-?[0-9]{0,9}[.,]?[0-9]{0,10}$/ : /^.*$/ } // definition.type property from parent loader used to disallow fractional number entry
 

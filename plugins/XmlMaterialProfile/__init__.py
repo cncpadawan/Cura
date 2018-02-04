@@ -1,5 +1,5 @@
 # Copyright (c) 2017 Ultimaker B.V.
-# Cura is released under the terms of the AGPLv3 or higher.
+# Cura is released under the terms of the LGPLv3 or higher.
 
 from . import XmlMaterialProfile
 from . import XmlMaterialUpgrader
@@ -14,19 +14,12 @@ upgrader = XmlMaterialUpgrader.XmlMaterialUpgrader()
 
 def getMetaData():
     return {
-        "plugin": {
-            "name": catalog.i18nc("@label", "Material Profiles"),
-            "author": "Ultimaker",
-            "version": "1.0",
-            "description": catalog.i18nc("@info:whatsthis", "Provides capabilities to read and write XML-based material profiles."),
-            "api": 3
-        },
         "settings_container": {
             "type": "material",
             "mimetype": "application/x-ultimaker-material-profile"
         },
         "version_upgrade": {
-            ("materials", 1000000): ("materials", 1000001, upgrader.upgradeMaterial),
+            ("materials", 1000000): ("materials", 1000004, upgrader.upgradeMaterial),
         },
         "sources": {
             "materials": {

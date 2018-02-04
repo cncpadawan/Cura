@@ -1,15 +1,16 @@
 # Copyright (c) 2017 Ultimaker B.V.
-# Cura is released under the terms of the AGPLv3 or higher.
+# Cura is released under the terms of the LGPLv3 or higher.
 
 from UM.i18n import i18nCatalog
 from UM.OutputDevice.OutputDevice import OutputDevice
-from PyQt5.QtCore import pyqtProperty, pyqtSignal, pyqtSlot, QObject, QTimer
+from PyQt5.QtCore import pyqtProperty, pyqtSlot, QObject, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
 from enum import IntEnum  # For the connection state tracking.
 
 from UM.Settings.ContainerRegistry import ContainerRegistry
 from UM.Logger import Logger
 from UM.Signal import signalemitter
+from UM.Application import Application
 
 i18n_catalog = i18nCatalog("cura")
 
@@ -56,6 +57,18 @@ class PrinterOutputDevice(QObject, OutputDevice):
         self._printer_type = "unknown"
 
         self._camera_active = False
+
+        self._monitor_view_qml_path = ""
+        self._monitor_item = None
+
+        self._control_view_qml_path = ""
+        self._control_item = None
+
+        self._qml_context = None
+        self._can_pause = True
+        self._can_abort = True
+        self._can_pre_heat_bed = True
+        self._can_control_manually = True
 
     def requestWrite(self, nodes, file_name = None, filter_by_machine = False, file_handler = None):
         raise NotImplementedError("requestWrite needs to be implemented")
@@ -110,6 +123,57 @@ class PrinterOutputDevice(QObject, OutputDevice):
 
     # Signal to be emitted when some drastic change occurs in the remaining time (not when the time just passes on normally).
     preheatBedRemainingTimeChanged = pyqtSignal()
+
+    # Does the printer support pre-heating the bed at all
+    @pyqtProperty(bool, constant=True)
+    def canPreHeatBed(self):
+        return self._can_pre_heat_bed
+
+    # Does the printer support pause at all
+    @pyqtProperty(bool,  constant=True)
+    def canPause(self):
+        return self._can_pause
+
+    # Does the printer support abort at all
+    @pyqtProperty(bool, constant=True)
+    def canAbort(self):
+        return self._can_abort
+
+    # Does the printer support manual control at all
+    @pyqtProperty(bool, constant=True)
+    def canControlManually(self):
+        return self._can_control_manually
+
+    @pyqtProperty(QObject, constant=True)
+    def monitorItem(self):
+        # Note that we specifically only check if the monitor component is created.
+        # It could be that it failed to actually create the qml item! If we check if the item was created, it will try to
+        # create the item (and fail) every time.
+        if not self._monitor_item:
+            self._createMonitorViewFromQML()
+        return self._monitor_item
+
+    @pyqtProperty(QObject, constant=True)
+    def controlItem(self):
+        if not self._control_item:
+            self._createControlViewFromQML()
+        return self._control_item
+
+    def _createControlViewFromQML(self):
+        if not self._control_view_qml_path:
+            return
+
+        self._control_item = Application.getInstance().createQmlComponent(self._control_view_qml_path, {
+            "OutputDevice": self
+        })
+
+    def _createMonitorViewFromQML(self):
+        if not self._monitor_view_qml_path:
+            return
+
+        self._monitor_item = Application.getInstance().createQmlComponent(self._monitor_view_qml_path, {
+            "OutputDevice": self
+        })
 
     @pyqtProperty(str, notify=printerTypeChanged)
     def printerType(self):
@@ -376,9 +440,9 @@ class PrinterOutputDevice(QObject, OutputDevice):
                 result.append(i18n_catalog.i18nc("@item:material", "No material loaded"))
                 continue
 
-            containers = self._container_registry.findInstanceContainers(type = "material", GUID = material_id)
+            containers = self._container_registry.findInstanceContainersMetadata(type = "material", GUID = material_id)
             if containers:
-                result.append(containers[0].getName())
+                result.append(containers[0]["name"])
             else:
                 result.append(i18n_catalog.i18nc("@item:material", "Unknown material"))
         return result
@@ -398,9 +462,9 @@ class PrinterOutputDevice(QObject, OutputDevice):
                 result.append("#00000000") #No material.
                 continue
 
-            containers = self._container_registry.findInstanceContainers(type = "material", GUID = material_id)
+            containers = self._container_registry.findInstanceContainersMetadata(type = "material", GUID = material_id)
             if containers:
-                result.append(containers[0].getMetaDataEntry("color_code"))
+                result.append(containers[0]["color_code"])
             else:
                 result.append("#00000000") #Unknown material.
         return result
@@ -548,7 +612,7 @@ class PrinterOutputDevice(QObject, OutputDevice):
     @pyqtSlot("long")
     @pyqtSlot("long", "long")
     def setHeadZ(self, z, speed = 3000):
-        self._setHeadY(z, speed)
+        self._setHeadZ(z, speed)
 
     ##  Move the head of the printer.
     #   Note that this is a relative move. If you want to move the head to a specific position you can use

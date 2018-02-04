@@ -1,4 +1,6 @@
-from UM.Math.Color import Color
+# Copyright (c) 2017 Ultimaker B.V.
+# Cura is released under the terms of the LGPLv3 or higher.
+
 from UM.Application import Application
 from typing import Any
 import numpy
@@ -16,8 +18,9 @@ class LayerPolygon:
     MoveCombingType = 8
     MoveRetractionType = 9
     SupportInterfaceType = 10
-    
-    __jump_map = numpy.logical_or(numpy.logical_or(numpy.arange(11) == NoneType, numpy.arange(11) == MoveCombingType), numpy.arange(11) == MoveRetractionType)
+    __number_of_types = 11
+
+    __jump_map = numpy.logical_or(numpy.logical_or(numpy.arange(__number_of_types) == NoneType, numpy.arange(__number_of_types) == MoveCombingType), numpy.arange(__number_of_types) == MoveRetractionType)
     
     ##  LayerPolygon, used in ProcessSlicedLayersJob
     #   \param extruder
@@ -25,22 +28,27 @@ class LayerPolygon:
     #   \param data new_points
     #   \param line_widths array with line widths
     #   \param line_thicknesses: array with type as index and thickness as value
-    def __init__(self, extruder, line_types, data, line_widths, line_thicknesses):
+    #   \param line_feedrates array with line feedrates
+    def __init__(self, extruder, line_types, data, line_widths, line_thicknesses, line_feedrates):
         self._extruder = extruder
         self._types = line_types
+        for i in range(len(self._types)):
+            if self._types[i] >= self.__number_of_types: #Got faulty line data from the engine.
+                self._types[i] = self.NoneType
         self._data = data
         self._line_widths = line_widths
         self._line_thicknesses = line_thicknesses
+        self._line_feedrates = line_feedrates
 
         self._vertex_begin = 0
         self._vertex_end = 0
         self._index_begin = 0
         self._index_end = 0
-        
+
         self._jump_mask = self.__jump_map[self._types]
         self._jump_count = numpy.sum(self._jump_mask)
-        self._mesh_line_count = len(self._types)-self._jump_count
-        self._vertex_count = self._mesh_line_count + numpy.sum( self._types[1:] == self._types[:-1])
+        self._mesh_line_count = len(self._types) - self._jump_count
+        self._vertex_count = self._mesh_line_count + numpy.sum(self._types[1:] == self._types[:-1])
 
         # Buffering the colors shouldn't be necessary as it is not 
         # re-used and can save alot of memory usage.
@@ -78,10 +86,11 @@ class LayerPolygon:
     #   \param vertices : vertex numpy array to be filled
     #   \param colors : vertex numpy array to be filled
     #   \param line_dimensions : vertex numpy array to be filled
+    #   \param feedrates : vertex numpy array to be filled
     #   \param extruders : vertex numpy array to be filled
     #   \param line_types : vertex numpy array to be filled
     #   \param indices : index numpy array to be filled
-    def build(self, vertex_offset, index_offset, vertices, colors, line_dimensions, extruders, line_types, indices):
+    def build(self, vertex_offset, index_offset, vertices, colors, line_dimensions, feedrates, extruders, line_types, indices):
         if self._build_cache_line_mesh_mask is None or self._build_cache_needed_points is None:
             self.buildCache()
             
@@ -103,9 +112,12 @@ class LayerPolygon:
         # Create an array with colors for each vertex and remove the color data for the points that has been thrown away. 
         colors[self._vertex_begin:self._vertex_end, :] = numpy.tile(self._colors, (1, 2)).reshape((-1, 4))[needed_points_list.ravel()]
 
-        # Create an array with line widths for each vertex.
+        # Create an array with line widths and thicknesses for each vertex.
         line_dimensions[self._vertex_begin:self._vertex_end, 0] = numpy.tile(self._line_widths, (1, 2)).reshape((-1, 1))[needed_points_list.ravel()][:, 0]
         line_dimensions[self._vertex_begin:self._vertex_end, 1] = numpy.tile(self._line_thicknesses, (1, 2)).reshape((-1, 1))[needed_points_list.ravel()][:, 0]
+
+        # Create an array with feedrates for each line
+        feedrates[self._vertex_begin:self._vertex_end] = numpy.tile(self._line_feedrates, (1, 2)).reshape((-1, 1))[needed_points_list.ravel()][:, 0]
 
         extruders[self._vertex_begin:self._vertex_end] = self._extruder
 
@@ -160,6 +172,14 @@ class LayerPolygon:
     @property
     def lineWidths(self):
         return self._line_widths
+
+    @property
+    def lineThicknesses(self):
+        return self._line_thicknesses
+
+    @property
+    def lineFeedrates(self):
+        return self._line_feedrates
     
     @property
     def jumpMask(self):

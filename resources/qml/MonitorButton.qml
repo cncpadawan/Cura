@@ -1,5 +1,5 @@
-// Copyright (c) 2016 Ultimaker B.V.
-// Cura is released under the terms of the AGPLv3 or higher.
+// Copyright (c) 2017 Ultimaker B.V.
+// Cura is released under the terms of the LGPLv3 or higher.
 
 import QtQuick 2.2
 import QtQuick.Controls 1.1
@@ -18,7 +18,6 @@ Item
     property bool printerConnected: Cura.MachineManager.printerOutputDevices.length != 0
     property bool printerAcceptsCommands: printerConnected && Cura.MachineManager.printerOutputDevices[0].acceptsCommands
     property real progress: printerConnected ? Cura.MachineManager.printerOutputDevices[0].progress : 0
-    property int backendState: UM.Backend.state
 
     property bool showProgress: {
         // determine if we need to show the progress bar + percentage
@@ -81,7 +80,6 @@ Item
     }
 
     property bool activity: CuraApplication.platformActivity;
-    property int totalHeight: childrenRect.height + UM.Theme.getSize("default_margin").height
     property string fileBaseName
     property string statusText:
     {
@@ -120,10 +118,10 @@ Item
     Label
     {
         id: statusLabel
-        width: parent.width - 2 * UM.Theme.getSize("default_margin").width
+        width: parent.width - 2 * UM.Theme.getSize("sidebar_margin").width
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+        anchors.leftMargin: UM.Theme.getSize("sidebar_margin").width
 
         color: base.statusColor
         font: UM.Theme.getFont("large")
@@ -178,21 +176,21 @@ Item
         property string backgroundColor: UM.Theme.getColor("progressbar_background");
         property string controlColor: base.statusColor;
 
-        width: parent.width - 2 * UM.Theme.getSize("default_margin").width;
+        width: parent.width - 2 * UM.Theme.getSize("sidebar_margin").width;
         height: UM.Theme.getSize("progressbar").height;
         anchors.top: statusLabel.bottom;
-        anchors.topMargin: UM.Theme.getSize("default_margin").height / 4;
+        anchors.topMargin: UM.Theme.getSize("sidebar_margin").height / 4;
         anchors.left: parent.left;
-        anchors.leftMargin: UM.Theme.getSize("default_margin").width;
+        anchors.leftMargin: UM.Theme.getSize("sidebar_margin").width;
     }
 
     Row {
         id: buttonsRow
         height: abortButton.height
         anchors.top: progressBar.bottom
-        anchors.topMargin: UM.Theme.getSize("default_margin").height
+        anchors.topMargin: UM.Theme.getSize("sidebar_margin").height
         anchors.right: parent.right
-        anchors.rightMargin: UM.Theme.getSize("default_margin").width
+        anchors.rightMargin: UM.Theme.getSize("sidebar_margin").width
         spacing: UM.Theme.getSize("default_margin").width
 
         Row {
@@ -200,14 +198,19 @@ Item
             spacing: UM.Theme.getSize("default_margin").width
         }
 
+        Component.onCompleted: {
+            buttonsRow.updateAdditionalComponents("monitorButtons")
+        }
+
         Connections {
-            target: Printer
-            onAdditionalComponentsChanged:
-            {
-                if(areaId == "monitorButtons") {
-                    for (var component in CuraApplication.additionalComponents["monitorButtons"]) {
-                        CuraApplication.additionalComponents["monitorButtons"][component].parent = additionalComponentsRow
-                    }
+            target: CuraApplication
+            onAdditionalComponentsChanged: buttonsRow.updateAdditionalComponents("monitorButtons")
+        }
+
+        function updateAdditionalComponents (areaId) {
+            if(areaId == "monitorButtons") {
+                for (var component in CuraApplication.additionalComponents["monitorButtons"]) {
+                    CuraApplication.additionalComponents["monitorButtons"][component].parent = additionalComponentsRow
                 }
             }
         }
@@ -221,7 +224,7 @@ Item
             property bool userClicked: false
             property string lastJobState: ""
 
-            visible: printerConnected
+            visible: printerConnected && Cura.MachineManager.printerOutputDevices[0].canPause
             enabled: (!userClicked) && printerConnected && Cura.MachineManager.printerOutputDevices[0].acceptsCommands &&
                      (["paused", "printing"].indexOf(Cura.MachineManager.printerOutputDevices[0].jobState) >= 0)
 
@@ -262,7 +265,7 @@ Item
         {
             id: abortButton
 
-            visible: printerConnected
+            visible: printerConnected && Cura.MachineManager.printerOutputDevices[0].canAbort
             enabled: printerConnected && Cura.MachineManager.printerOutputDevices[0].acceptsCommands &&
                      (["paused", "printing", "pre_print"].indexOf(Cura.MachineManager.printerOutputDevices[0].jobState) >= 0)
 

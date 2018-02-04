@@ -1,5 +1,4 @@
 {
-    "id": "rigid3d_zero2",
     "name": "Rigid3D Zero2",
     "version": 2,
     "inherits": "fdmprinter",
@@ -7,7 +6,6 @@
         "visible": true,
         "author": "Rigid3D",
         "manufacturer": "Rigid3D",
-        "category": "Other",
         "has_materials": false,
         "file_formats": "text/x-gcode",
         "platform": "rigid3d_zero2_platform.stl",
@@ -64,8 +62,7 @@
             "default_value": 15
         },
         "infill_pattern": {
-            "default_value": "lines", 
-            "value": "lines"             
+            "value": "'lines'"
         },
         "retraction_amount": {
             "default_value": 1
@@ -121,7 +118,7 @@
             "default_value": "grid"
         },        
         "machine_start_gcode": {
-            "default_value": "G21\nG28 ; Home extruder\nM107 ; Turn off fan\nG91 ; Relative positioning\nG1 Z5 F180;\nG1 X100 Y100 F3000;\nG1 Z-5 F180;\nG90 ; Absolute positioning\nM82 ; Extruder in absolute mode\nG92 E0 ; Reset extruder position\n"
+            "default_value": "G21\nG28 ; Home extruder\nM420 S1 ; Enable MBL\nM107 ; Turn off fan\nG91 ; Relative positioning\nG1 Z5 F180;\nG1 X30 Y30 F3000;\nG1 Z-5 F180;\nG90 ; Absolute positioning\nM82 ; Extruder in absolute mode\nG92 E0 ; Reset extruder position\n"
         },
         "machine_end_gcode": {
             "default_value": "G1 X0 Y180 ; Get extruder out of way.\nM107 ; Turn off fan\nG91 ; Relative positioning\nG0 Z20 ; Lift extruder up\nT0\nG1 E-1 ; Reduce filament pressure\nM104 T0 S0 ; Turn extruder heater off\nG90 ; Absolute positioning\nG92 E0 ; Reset extruder position\nM140 S0 ; Disable heated bed\nM84 ; Turn steppers off\n"
