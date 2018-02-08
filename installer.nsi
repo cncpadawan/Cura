@@ -9,11 +9,11 @@ Name "Cura ${VERSION} - Moai Edition"
 OutFile "Cura_${VERSION}.exe"
 
 ; The default installation directory
-InstallDir $PROGRAMFILES\Cura_${VERSION}_Moai_Edition
+InstallDir $PROGRAMFILES\CuraMoai_${VERSION}
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\Cura_${VERSION}_Moai_Edition" "Install_Dir"
+InstallDirRegKey HKLM "Software\CuraMoai_${VERSION}" "Install_Dir"
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin
@@ -78,28 +78,28 @@ Section "Cura ${VERSION}"
   File /r "dist\"
 
   ; Write the installation path into the registry
-  WriteRegStr HKLM "SOFTWARE\Cura_${VERSION}_Moai_Edition" "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM "SOFTWARE\CuraMoai_${VERSION}" "Install_Dir" "$INSTDIR"
 
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Cura_${VERSION}_Moai_Edtion" "DisplayName" "Cura ${VERSION} - Moai Edition"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Cura_${VERSION}_Moai_Edition" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Cura_${VERSION}_Moai_Edition" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Cura_${VERSION}_Moai_Edition" "NoRepair" 1
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CuraMoai_${VERSION}" "DisplayName" "Cura ${VERSION} - Moai Edition"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CuraMoai_${VERSION}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CuraMoai_${VERSION}" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CuraMoai_${VERSION}" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
 
   ; Write start menu entries for all users
   SetShellVarContext all
 
-  CreateDirectory "$SMPROGRAMS\Cura ${VERSION} - Moai Edition"
-  CreateShortCut "$SMPROGRAMS\Cura ${VERSION} - Moai Edition\Uninstall Cura ${VERSION}.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
-  CreateShortCut "$SMPROGRAMS\Cura ${VERSION} - Moai Edition\Cura ${VERSION} - Moai Edition.lnk" "$INSTDIR\Cura.exe" '' "$INSTDIR\Cura.exe" 0
+  CreateDirectory "$SMPROGRAMS\CuraMoai ${VERSION}"
+  CreateShortCut "$SMPROGRAMS\CuraMoai ${VERSION}\Uninstall Cura ${VERSION}.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+  CreateShortCut "$SMPROGRAMS\CuraMoai ${VERSION}\Cura ${VERSION} - Moai Edition.lnk" "$INSTDIR\Cura.exe" '' "$INSTDIR\Cura.exe" 0
 
 SectionEnd
 
 Function LaunchLink
   ; Write start menu entries for all users
   SetShellVarContext all
-  Exec '"$WINDIR\explorer.exe" "$SMPROGRAMS\Cura ${VERSION} - Moai Edition\Cura ${VERSION} - Moai Edition.lnk"'
+  Exec '"$WINDIR\explorer.exe" "$SMPROGRAMS\CuraMoai ${VERSION}\Cura ${VERSION} - Moai Edition.lnk"'
 FunctionEnd
 
 Section "Install Visual Studio 2010 Redistributable"
@@ -144,8 +144,8 @@ SectionEnd
 Section "Uninstall"
 
   ; Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Cura_${VERSION}_Moai_Edition"
-  DeleteRegKey HKLM "SOFTWARE\Cura_${VERSION}_Moai_Edition"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CuraMoai_${VERSION}"
+  DeleteRegKey HKLM "SOFTWARE\CuraMoai_${VERSION}"
 
   ; Write start menu entries for all users
   SetShellVarContext all
