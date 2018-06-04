@@ -1,4 +1,5 @@
 {
+    "id": "peopoly_moai",
     "version": 2,
     "name": "Peopoly Moai",
     "inherits": "fdmprinter",
@@ -6,7 +7,10 @@
         "visible": true,
         "author": "fieldOfView",
         "manufacturer": "Peopoly",
+        "category": "Other",
         "file_formats": "text/x-gcode",
+        "platform": "moai.obj",
+        "platform_texture": "moai.jpg",
         "has_machine_quality": true,
         "has_materials": false
     },
@@ -112,12 +116,6 @@
         "speed_slowdown_layers": {
             "value": "2"
         },
-        "infill_overlap": {
-            "value": "15"
-        },
-        "adhesion_type": {
-            "value": "\"none\""
-        },
 
         "acceleration_enabled": {
             "value": "False"
@@ -136,7 +134,7 @@
         },
         "material_diameter": {
             "enabled": false,
-            "default_value": 1.75
+            "value": "1.75"
         },
         "cool_fan_enabled": {
             "enabled": false,
