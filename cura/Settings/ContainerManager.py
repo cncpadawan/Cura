@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Ultimaker B.V.
+# Copyright (c) 2018 Ultimaker B.V.
 # Cura is released under the terms of the LGPLv3 or higher.
 
 import os.path
@@ -22,12 +22,10 @@ from UM.Settings.DefinitionContainer import DefinitionContainer
 from UM.Settings.InstanceContainer import InstanceContainer
 
 from UM.MimeTypeDatabase import MimeTypeNotFoundError
+from UM.Settings.ContainerFormatError import ContainerFormatError
 from UM.Settings.ContainerRegistry import ContainerRegistry
-
-from UM.i18n import i18nCatalog
-
 from cura.Settings.ExtruderManager import ExtruderManager
-from cura.Settings.ExtruderStack import ExtruderStack
+from UM.i18n import i18nCatalog
 
 catalog = i18nCatalog("cura")
 
@@ -45,6 +43,7 @@ class ContainerManager(QObject):
         self._container_registry = ContainerRegistry.getInstance()
         self._machine_manager = self._application.getMachineManager()
         self._material_manager = self._application.getMaterialManager()
+        self._quality_manager = self._application.getQualityManager()
         self._container_name_filters = {}
 
     @pyqtSlot(str, str, result=str)
@@ -98,9 +97,10 @@ class ContainerManager(QObject):
             entry_value = root
 
         container = material_group.root_material_node.getContainer()
-        container.setMetaDataEntry(entry_name, entry_value)
-        if sub_item_changed: #If it was only a sub-item that has changed then the setMetaDataEntry won't correctly notice that something changed, and we must manually signal that the metadata changed.
-            container.metaDataChanged.emit(container)
+        if container is not None:
+            container.setMetaDataEntry(entry_name, entry_value)
+            if sub_item_changed: #If it was only a sub-item that has changed then the setMetaDataEntry won't correctly notice that something changed, and we must manually signal that the metadata changed.
+                container.metaDataChanged.emit(container)
 
     ##  Set a setting property of the specified container.
     #
@@ -288,7 +288,9 @@ class ContainerManager(QObject):
             with open(file_url, "rt", encoding = "utf-8") as f:
                 container.deserialize(f.read())
         except PermissionError:
-            return {"status": "error", "message": "Permission denied when trying to read the file"}
+            return {"status": "error", "message": "Permission denied when trying to read the file."}
+        except ContainerFormatError:
+            return {"status": "error", "Message": "The material file appears to be corrupt."}
         except Exception as ex:
             return {"status": "error", "message": str(ex)}
 
@@ -306,15 +308,25 @@ class ContainerManager(QObject):
     #   \return \type{bool} True if successful, False if not.
     @pyqtSlot(result = bool)
     def updateQualityChanges(self):
-        global_stack = Application.getInstance().getGlobalContainerStack()
+        global_stack = self._machine_manager.activeMachine
         if not global_stack:
             return False
 
         self._machine_manager.blurSettings.emit()
 
-        for stack in ExtruderManager.getInstance().getActiveGlobalAndExtruderStacks():
+        current_quality_changes_name = global_stack.qualityChanges.getName()
+        current_quality_type = global_stack.quality.getMetaDataEntry("quality_type")
+        extruder_stacks = list(global_stack.extruders.values())
+        for stack in [global_stack] + extruder_stacks:
             # Find the quality_changes container for this stack and merge the contents of the top container into it.
             quality_changes = stack.qualityChanges
+
+            if quality_changes.getId() == "empty_quality_changes":
+                quality_changes = self._quality_manager._createQualityChanges(current_quality_type, current_quality_changes_name,
+                                                                              global_stack, stack)
+                self._container_registry.addContainer(quality_changes)
+                stack.qualityChanges = quality_changes
+
             if not quality_changes or self._container_registry.isReadOnly(quality_changes.getId()):
                 Logger.log("e", "Could not update quality of a nonexistant or read only quality profile in stack %s", stack.getId())
                 continue
@@ -377,7 +389,8 @@ class ContainerManager(QObject):
         # NOTE: We only need to set the root material container because XmlMaterialProfile.setMetaDataEntry() will
         # take care of the derived containers too
         container = material_group.root_material_node.getContainer()
-        container.setMetaDataEntry("GUID", new_guid)
+        if container is not None:
+            container.setMetaDataEntry("GUID", new_guid)
 
     ##  Get the singleton instance for this class.
     @classmethod
@@ -466,5 +479,5 @@ class ContainerManager(QObject):
         if not path:
             return
 
-        container_list = [n.getContainer() for n in quality_changes_group.getAllNodes()]
+        container_list = [n.getContainer() for n in quality_changes_group.getAllNodes() if n.getContainer() is not None]
         self._container_registry.exportQualityProfile(container_list, path, file_type)

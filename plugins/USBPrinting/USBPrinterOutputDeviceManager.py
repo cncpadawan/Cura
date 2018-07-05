@@ -42,11 +42,19 @@ class USBPrinterOutputDeviceManager(QObject, OutputDevicePlugin):
         # Because the model needs to be created in the same thread as the QMLEngine, we use a signal.
         self.addUSBOutputDeviceSignal.connect(self.addOutputDevice)
 
+        Application.getInstance().globalContainerStackChanged.connect(self.updateUSBPrinterOutputDevices)
+
+    # The method updates/reset the USB settings for all connected USB devices
+    def updateUSBPrinterOutputDevices(self):
+        for key, device in self._usb_output_devices.items():
+            if isinstance(device, USBPrinterOutputDevice.USBPrinterOutputDevice):
+                device.resetDeviceSettings()
+
     def start(self):
         self._check_updates = True
         self._update_thread.start()
 
-    def stop(self):
+    def stop(self, store_data: bool = True):
         self._check_updates = False
 
     def _onConnectionStateChanged(self, serial_port):

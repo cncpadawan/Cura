@@ -366,7 +366,7 @@ class ExtruderManager(QObject):
     def getActiveExtruderStacks(self) -> List["ExtruderStack"]:
         global_stack = Application.getInstance().getGlobalContainerStack()
         if not global_stack:
-            return None
+            return []
 
         result = []
         if global_stack.getId() in self._extruder_trains:
@@ -402,7 +402,8 @@ class ExtruderManager(QObject):
 
             # Register the extruder trains by position
             for extruder_train in extruder_trains:
-                self._extruder_trains[global_stack_id][extruder_train.getMetaDataEntry("position")] = extruder_train
+                extruder_position = extruder_train.getMetaDataEntry("position")
+                self._extruder_trains[global_stack_id][extruder_position] = extruder_train
 
                 # regardless of what the next stack is, we have to set it again, because of signal routing. ???
                 extruder_train.setParent(global_stack)
@@ -555,6 +556,11 @@ class ExtruderManager(QObject):
             result.append(global_stack.getProperty(key, "value", context = context))
 
         return result
+
+    ##  Return the default extruder position from the machine manager
+    @staticmethod
+    def getDefaultExtruderPosition() -> str:
+        return Application.getInstance().getMachineManager().defaultExtruderPosition
 
     ##  Get all extruder values for a certain setting.
     #
